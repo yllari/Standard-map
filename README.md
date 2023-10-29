@@ -1,7 +1,7 @@
 Tracking code for Standard map LWD algorithm in python. TFM
 # Results for delta = 0.41, k = 1, alpha = 1
-![delta=0.41](https://github.com/yllari/Standard-map/blob/main/trajectories_delta%3D0.41.png?raw=true =250x250) \n
-![Inset for delta= 0.41](https://github.com/yllari/Standard-map/blob/main/delta%3D0.41%2Ccloseup.png?raw=true = 250x250)\n
+![delta=0.41](https://github.com/yllari/Standard-map/blob/main/trajectories_delta%3D0.41.png?raw=true=250x250) \n
+![Inset for delta= 0.41](https://github.com/yllari/Standard-map/blob/main/delta%3D0.41%2Ccloseup.png?raw=true=250x250)\n
 # Results for delta = 1., k = 1, alpha = 1:
 ![delta=1](https://github.com/yllari/Standard-map/blob/main/trajectories_delta%3D1.png?raw=true|width=50) \n
 
