@@ -4,11 +4,13 @@ import time
 # Parameters
 delta_t = 1.
 epsilon = 1e-16 # noise
-alpha = 0.04
-k = 1.
+alpha = -1.
+k = 7.7
 eps_sqrt = np.sqrt(epsilon)
 steps = int(1e4)
 n_clones = int(1e3) # Max number of clones
+seed = 2323
+np.random.seed(seed)
 
 def eq_p(q,p,noise):
     return p - k*delta_t*np.sin(2.*np.pi*q)/(2.*np.pi) + eps_sqrt*noise
@@ -24,7 +26,7 @@ def boundary(q,p):
         if (p[l]>=-0.5):
             p[l] = (0.5+p[l]) % 1.-0.5
         else:
-            p[l] = 0.5-(0.5+(p[l]) % 1.)
+            p[l] = 0.5-((0.5+p[l]) % 1.)
     return q,p
 
 def LWD(delta_t, epsilon, steps, n_clones, q, p, func_q, func_p):
@@ -43,19 +45,22 @@ def LWD(delta_t, epsilon, steps, n_clones, q, p, func_q, func_p):
     
     # Normalization
     u_mods[0][:] = scale
-
-    randomstate = np.random.default_rng()
+    
+    ## seed for random generator
+    randomstate = np.random.default_rng(seed)
     for i in range(1,steps):
         # Generate all necessary random numbers
         random_noise = np.random.normal(loc = 0.0, scale = 1.0, size=n_clones) 
-        random_selection = np.random.uniform(size=n_clones) 
+        random_selection = np.random.uniform(0,1,size=n_clones) 
 
-        p = func_p(q,p,random_noise)
-        q = func_q(q,p)
         
         ## Non differentiable
         p_c = func_p(q+u_q,p+u_p,random_noise)
         q_c = func_q(q+u_q,p_c)
+    
+        # Updating q,p
+        p = func_p(q,p,random_noise)
+        q = func_q(q,p)
 
         u_p = p_c-p
         u_q = q_c-q
@@ -65,17 +70,16 @@ def LWD(delta_t, epsilon, steps, n_clones, q, p, func_q, func_p):
         # u_q = -A_qj vj
 
         ## Saving modules
-        u_mods[i][:] = module(u_q,u_p)
-        
+        u_mods[i,:] = module(u_q,u_p)
         ## Scaling
         u_q = scale*u_q/u_mods[i,:]
         u_p = scale*u_p/u_mods[i,:]
 
 
         ## Calculating tau
-        pop_loc_counter = np.floor(random_selection+(u_mods[i][:]/scale)**alpha).astype(int)
+        pop_loc_counter = np.floor(random_selection+(u_mods[i,:]/scale)**alpha).astype(int)
         pop_counter[i] = np.sum(pop_loc_counter).astype(int)
-
+        print(i,pop_counter[i])
         ## Asigning populations
         if (pop_counter[i] == 0):
             print("Population has crashed (0) at t: ", i)
@@ -90,6 +94,9 @@ def LWD(delta_t, epsilon, steps, n_clones, q, p, func_q, func_p):
             # Assigning the number of found repetitions
             q = np.repeat(q,howmany)
             p = np.repeat(p,howmany)
+
+            u_q = np.repeat(u_q,howmany)
+            u_p = np.repeat(u_p,howmany)
         elif (pop_counter[i] < n_clones):
             ## Filling up missing population
             new_indices = randomstate.choice(indices,
@@ -98,19 +105,29 @@ def LWD(delta_t, epsilon, steps, n_clones, q, p, func_q, func_p):
                                              p = pop_loc_counter/pop_counter[i])
             q_short = np.repeat(q,pop_loc_counter)
             p_short = np.repeat(p,pop_loc_counter)
+
+            uq_short = np.repeat(u_q,pop_loc_counter)
+            up_short = np.repeat(u_p,pop_loc_counter)
+
             q = np.append(q_short,q[new_indices])
             p = np.append(p_short,p[new_indices])
+
+            u_q = np.append(uq_short,u_q[new_indices])
+            u_p = np.append(up_short,u_p[new_indices])
         else:
             ## Generating the population
             q = np.repeat(q,pop_loc_counter)
             p = np.repeat(p,pop_loc_counter)
+
+            u_q = np.repeat(u_q,pop_loc_counter)
+            u_p = np.repeat(u_p,pop_loc_counter)
         if (i % int(steps/10)*10==0):
             print(str(i/(steps/10)*10) + "%")
         # To check
         #q,p = boundary(q,p)
 
         n_sample = 40
-        min_track = steps -5000
+        min_track = steps-5000
         if (i>min_track):
             q_aux = q[0:n_sample]
             p_aux = p[0:n_sample]
@@ -118,6 +135,7 @@ def LWD(delta_t, epsilon, steps, n_clones, q, p, func_q, func_p):
             q_aux,p_aux = boundary(q_aux,p_aux)
             q_traj = np.append(q_traj,q_aux)
             p_traj = np.append(p_traj,p_aux)
+
     print("Elapsed time: ", time.time()-t1)
     return q_traj,p_traj, pop_counter, u_mods
 
@@ -133,6 +151,7 @@ def trajectory_plot(ax, tray_steps:int =1000, tray_clones:int = 1000):
     for i in range(tray_clones):
         ax.plot(tray[:-1,0,i],tray[:-1,1,i],"r-",linewidth=1./tray_clones)
     return ax
+
 def mu_calc(pop_counter,ax):
     R = np.zeros(steps-1)
     for i in range(steps-1):
@@ -144,20 +163,23 @@ def mu_calc(pop_counter,ax):
     return mu,ax
 
 q = np.ones(n_clones)*0.5
-p = np.zeros(n_clones)
-#q = np.ones(n_clones)*0.207+np.random.uniform()*0.05-0.025
-#p = np.ones(n_clones)*0.09+np.random.uniform()*0.05-0.025
+p= np.zeros(n_clones)
+#q = np.random.uniform(0,1,size=n_clones)
+#p = np.random.uniform(-0.5,0.5,size=n_clones)
+q = np.ones(n_clones)*0.883 +np.random.uniform(-1,1,n_clones)*0.01
+p = np.ones(n_clones)*0.09+np.random.uniform(-1,1,n_clones)*0.01
 
 q,p, pop_counter, u_mods = LWD(delta_t,epsilon,steps,n_clones,q,p,eq_q,eq_p)
-fig,ax = plt.subplots()
-mu,ax = mu_calc(pop_counter,ax)
-fig.savefig("mu.png")
+#fig,ax = plt.subplots()
+#mu,ax = mu_calc(pop_counter,ax)
+#fig.savefig("mu.png")
 
 fig,ax =plt.subplots()
 trajectory_plot(ax)
 ax.scatter(q,p,s=.05,alpha=0.1)
+
 ax.set_xlim([0,1])
 ax.set_ylim([-0.5,0.5])
 fig.savefig("trajectories.png")
+plt.show()
 
-print(mu)
