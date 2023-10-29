@@ -32,8 +32,9 @@ def LWD(delta_t, epsilon, steps, n_clones, q, p, func_q, func_p):
     scale= 1e-6
     q_traj = np.ones(0)
     p_traj = np.ones(0)
-    u_q = np.random.uniform(0,1,n_clones)
-    u_p = np.random.uniform(0,1,n_clones)
+    u_dir = np.random.uniform(0,2*np.pi,n_clones)
+    u_q = scale*np.cos(u_dir)
+    u_p = scale*np.sin(u_dir)
     u_mods = np.zeros((steps,n_clones))
     
     indices = np.arange(0,n_clones)
@@ -41,9 +42,6 @@ def LWD(delta_t, epsilon, steps, n_clones, q, p, func_q, func_p):
     pop_counter[0] = n_clones
     
     # Normalization
-    u_norm = module(u_q,u_p)
-    u_p = scale*u_p/u_norm
-    u_q = scale*u_q/u_norm
     u_mods[0][:] = scale
 
     randomstate = np.random.default_rng()
